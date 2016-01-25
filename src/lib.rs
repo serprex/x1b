@@ -22,10 +22,10 @@ pub mod x1b {
 		}
 	}
 	pub struct Cursor {
-		buf: String,
-		attr: TextAttr,
-		x: u16,
-		y: u16,
+		pub buf: String,
+		pub attr: TextAttr,
+		pub x: u16,
+		pub y: u16,
 	}
 
 	impl Default for Cursor {
