@@ -1,6 +1,6 @@
 [package]
 name = "x1b"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["serprex"]
 repository = "https://github.com/serprex/1xb"
 description = "State tracker for 0x1b terminal escape codes. Also gives random characters names."
