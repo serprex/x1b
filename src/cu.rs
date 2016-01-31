@@ -59,8 +59,8 @@ impl Curse {
 	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
 		let mut xx = 0;
 		for c in s.chars() {
-			self.setxy(x+xx, y, TCell::new(c, ta));
-			x += 1;
+			self.set(x+xx, y, TCell::new(c, ta));
+			xx += 1;
 		}
 	}
 	pub fn print(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
@@ -74,11 +74,11 @@ impl Curse {
 				xx = 0;
 			} else if c == '\t' {
 				for _ in 0..4-xx&!3 {
-					self.setxy(x+xx, y+yy, TCell::new(' ', ta));
+					self.set(x+xx, y+yy, TCell::new(' ', ta));
 					xx += 1;
 				}
 			} else {
-				self.setxy(x+xx, y+yy, TCell::new(c, ta));
+				self.set(x+xx, y+yy, TCell::new(c, ta));
 				xx += 1;
 			}
 		}
