@@ -9,16 +9,16 @@ pub struct TCell{
 }
 impl TCell {
 	pub fn gch(&self) -> char {
-		unsafe { transmute(self.ch&0x000FFFFF) }
+		unsafe { transmute(self.ch&0x00ffffff) }
 	}
 	pub fn gta(&self) -> TextAttr {
 		unsafe { transmute((self.ch >> 24) as u8) }
 	}
 	pub fn sch(&mut self, ch: char) {
-		self.ch = (self.ch&0xFF000000)|(ch as u32)
+		self.ch = (self.ch&0xff000000)|(ch as u32)
 	}
 	pub fn sta(&mut self, ta: TextAttr) {
-		self.ch = (self.ch&0x00FFFFFF)|((ta.bits() as u32)<<24)
+		self.ch = (self.ch&0x00ffffff)|((ta.bits() as u32)<<24)
 	}
 	pub fn new(ch: char, ta: TextAttr) -> Self {
 		TCell { ch: (ch as u32)|((ta.bits() as u32)<<24) }
@@ -51,12 +51,19 @@ impl Curse {
 			*c = tc
 		}
 	}
-	pub fn setxy(&mut self, x: u16, y: u16, tc: TCell) {
+	pub fn set(&mut self, x: u16, y: u16, tc: TCell) {
 		if x<self.w && y<self.h {
 			*unsafe { self.new.get_unchecked_mut((x+y*self.w) as usize) } = tc
 		}
 	}
-	pub fn printxy(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
+	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
+		let mut xx = 0;
+		for c in s.chars() {
+			self.setxy(x+xx, y, TCell::new(c, ta));
+			x += 1;
+		}
+	}
+	pub fn print(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
 		let mut xx = 0;
 		let mut yy = 0;
 		for c in s.chars() {
