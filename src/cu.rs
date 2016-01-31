@@ -1,5 +1,5 @@
 use x1b::*;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::io;
 use std::io::{Write};
 use std::mem::{transmute};
@@ -33,34 +33,33 @@ pub struct Curse {
 	w: u16,
 	h: u16,
 	old: Vec<TCell>,
-	new: Vec<TCell>,
-	xycache : HashSet<u32>,
+	new: HashMap<u32, TCell>,
 }
 
 impl Curse {
 	pub fn new(w: u16, h: u16) -> Self {
-		let wh = (w*h) as usize;
-		let empty = vec![TCell::from_char(' '); wh];
 		Curse {
 			w: w,
 			h: h,
-			old: empty.clone(),
-			new: empty,
-			xycache: HashSet::new(),
+			old: vec![TCell::from_char(' '); (w*h) as usize],
+			new: HashMap::new(),
 		}
 	}
 	pub fn clear(&mut self, tc: TCell) {
-		for (idx, c) in self.new.iter_mut().enumerate() {
-			if tc != *unsafe { self.old.get_unchecked(idx) } {
-				*c = tc;
-				self.xycache.insert(idx as u32);
-			}
+		let len = self.old.len() as u32;
+		for idx in 0..len {
+			unsafe { self.setidx(idx, tc) }
+		}
+	}
+	pub unsafe fn setidx(&mut self, idx: u32, tc: TCell) {
+		if self.new.contains_key(&idx) || *self.old.get_unchecked(idx as usize) != tc {
+			self.new.insert(idx as u32, tc);
 		}
 	}
 	pub fn set(&mut self, x: u16, y: u16, tc: TCell) {
-		if x<self.w && y<self.h {
-			*unsafe { self.new.get_unchecked_mut((x+y*self.w) as usize) } = tc;
-			self.xycache.insert((x+y*self.w) as u32);
+		let w = self.w;
+		if x<w && y<self.h {
+			unsafe { self.setidx((x+y*w) as u32, tc) }
 		}
 	}
 	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
@@ -92,46 +91,43 @@ impl Curse {
 	}
 	pub fn refresh(&mut self) -> io::Result<()> {
 		let mut cursor = Cursor::default();
-		for &idxu32 in self.xycache.iter() {
-			let idx = idxu32 as usize;
-			let (oldtc, newtc) = unsafe {
-				(self.old.get_unchecked_mut(idx), self.new.get_unchecked(idx))
-			};
+		for (&idx, newtc) in self.new.iter() {
+			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
 			if oldtc != newtc {
 				*oldtc = *newtc;
 				let ch = newtc.gch();
 				let ta = newtc.gta();
-				let (x, y) = ((idx%self.w as usize) as u16, (idx/self.w as usize) as u16);
+				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
 				cursor.mv(x+1, y+1);
 				cursor.setattr(ta);
 				cursor.prchr(ch)
 			}
 		}
+		self.new.clear();
 		cursor.flush()
 	}
 	pub fn perframe_refresh_then_clear(&mut self, tc: TCell) -> io::Result<()> {
 		let mut cursor = Cursor::default();
-		let mut rmxyc: Vec<u32> = Vec::new();
-		for &idxu32 in self.xycache.iter() {
-			let idx = idxu32 as usize;
-			let (oldtc, newtc) = unsafe {
-				(self.old.get_unchecked_mut(idx), self.new.get_unchecked_mut(idx))
-			};
+		let mut rmxyc: Vec<u32> = Vec::with_capacity(self.new.len());
+		for (&idx, newtc) in self.new.iter_mut() {
+			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
 			if oldtc != newtc {
 				*oldtc = *newtc;
 				let ch = newtc.gch();
 				let ta = newtc.gta();
-				let (x, y) = ((idx%self.w as usize) as u16, (idx/self.w as usize) as u16);
+				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
 				cursor.mv(x+1, y+1);
 				cursor.setattr(ta);
 				cursor.prchr(ch);
-				*newtc = tc;
-			} else if *newtc == tc {
-				rmxyc.push(idxu32);
-			} else { *newtc = tc; }
+			}
+			if *newtc != tc {
+				*newtc = tc
+			} else {
+				rmxyc.push(idx);
+			}
 		}
-		for idxu32 in rmxyc {
-			self.xycache.remove(&idxu32);
+		for idx in rmxyc {
+			self.new.remove(&idx);
 		}
 		cursor.flush()
 	}
