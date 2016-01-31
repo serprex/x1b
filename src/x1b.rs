@@ -56,7 +56,7 @@ impl Cursor {
 		self.attr.intersects(ta)
 	}
 	pub fn setattr(&mut self, ta: TextAttr){
-		let mut anyattrs = false;
+		if ta == self.attr { return }
 		let mapping = [
 			(TA_BOLD, '1'),
 			(TA_LOW, '2'),
@@ -64,17 +64,27 @@ impl Cursor {
 			(TA_BLINK, '5'),
 			(TA_REV, '7'),
 			(TA_INVIS, '8')];
-		for &(attr, code) in mapping.iter() {
-			if ta.contains(attr) && !self.attr.contains(attr) {
-				self.buf.push(code);
-				self.buf.push(';');
-				anyattrs = true
+		self.buf.push('\x1b');
+		self.buf.push('[');
+		if ta.contains(self.attr) {
+			for &(attr, code) in mapping.iter() {
+				if ta.contains(attr) && !self.attr.contains(attr) {
+					self.buf.push(code);
+					self.buf.push(';')
+				}
 			}
+		} else {
+			self.escch('m');
+			for &(attr, code) in mapping.iter() {
+				if ta.contains(attr) {
+					self.buf.push(code);
+					self.buf.push(';')
+				}
+			}
+
 		}
-		if anyattrs {
-			self.attr.insert(ta);
-			unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = 109 }
-		}
+		unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = 109 }
+		self.attr = ta;
 	}
 	pub fn setbold(&mut self){
 		self.attr.insert(TA_BOLD);
@@ -247,8 +257,9 @@ impl Cursor {
 		io::stdout().write_all(b"\x1bc")
 	}
 	pub fn flush(&mut self) -> io::Result<()> {
-		let ret = io::stdout().write_all(self.buf.as_bytes());
-		self.buf.clear();
-		ret
+		let mut out = io::stdout();
+		try!(out.write_all(self.buf.as_bytes()));
+		try!(out.flush());
+		Ok(self.buf.clear())
 	}
 }

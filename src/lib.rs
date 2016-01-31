@@ -1,10 +1,14 @@
 #![crate_type = "lib"]
 #![crate_name = "x1b"]
+#![allow(dead_code)]
 #[macro_use]
 extern crate bitflags;
 
 mod x1b;
 mod cu;
+
+pub use x1b::*;
+pub use cu::*;
 
 #[cfg(test)]
 mod test {
