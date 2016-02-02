@@ -63,10 +63,8 @@ impl Curse {
 		}
 	}
 	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
-		let mut xx = 0;
-		for c in s.chars() {
-			self.set(x+xx, y, TCell::new(c, ta));
-			xx += 1;
+		for (xx, c) in s.chars().enumerate() {
+			self.set(x+(xx as u16), y, TCell::new(c, ta));
 		}
 	}
 	pub fn print(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
