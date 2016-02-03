@@ -1,8 +1,8 @@
 use x1b::*;
 use std::collections::HashMap;
 use std::io;
-use std::io::{Write};
-use std::mem::{transmute};
+use std::io::Write;
+use std::mem::transmute;
 
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct TCell{

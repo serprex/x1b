@@ -28,8 +28,8 @@ impl Default for Cursor {
 		Cursor {
 			buf: String::new(),
 			attr: TextAttr::empty(),
-			x: 65535,
-			y: 65535,
+			x: 1,
+			y: 1,
 		}
 	}
 }

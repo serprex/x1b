@@ -6,15 +6,20 @@ extern crate bitflags;
 
 mod x1b;
 mod cu;
+mod query;
 
 pub use x1b::*;
 pub use cu::*;
+pub use query::*;
 
 #[cfg(test)]
 mod test {
 	use x1b;
+	use query;
 	#[test]
 	fn curspos() {
+		println!("");
+		assert!(query::get_cursor_xy().unwrap().0 == 1);
 		let mut rc: x1b::Cursor = Default::default();
 		rc.rgb((0x33, 0x66, 0x99));
 		rc.print("asdf\n");
