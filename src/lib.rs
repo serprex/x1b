@@ -18,17 +18,25 @@ mod test {
 	use query;
 	#[test]
 	fn curspos() {
-		println!("");
-		assert!(query::get_cursor_xy().unwrap().0 == 1);
 		let mut rc: x1b::Cursor = Default::default();
 		rc.rgb((0x33, 0x66, 0x99));
 		rc.print("asdf\n");
 		let (rx, ry) = rc.getxy();
 		rc.print(&format!("{} {} ?", rx, ry));
 		let (rx, ry) = rc.getxy();
-		assert!(ry == 2);
+		assert_eq!(ry, 2);
 		assert!(rc.flush().is_ok());
-		assert!(ry == 2);
-		assert!(rx == 6);
+		assert_eq!(ry, 2);
+		assert_eq!(rx, 6);
+	}
+	#[test]
+	fn getcursorxyttywh() {
+		print!("\r\n");
+		assert_eq!(query::get_cursor_xy().unwrap().0, 1);
+		println!("{:?}", query::get_cursor_xy());
+		println!("{:?}", query::get_tty_wh());
+		println!("{:?}", query::get_cursor_xy());
+		println!("{:?}", query::get_tty_wh_dirty());
+		println!("{:?}", query::get_cursor_xy());
 	}
 }

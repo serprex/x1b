@@ -19,14 +19,13 @@ enum Curp {
 }
 
 fn ascii2digit(x: u8) -> u16 {
-	if x >= b'0' && x <= b'9' { (x-b'0') as u16 } else { 255 }
+	(x-b'0') as u16
 }
 
-pub fn get_cursor_xy() -> io::Result<(u16, u16)> {
+fn get_cursor_xy_with_esc(esc: &[u8]) -> io::Result<(u16, u16)> {
 	let mut state = Curp::Nil;
-	for b in try!(query_start(b"\x1b[6n")).bytes() {
+	for b in try!(query_start(esc)).bytes() {
 		let b = try!(b);
-		println!("{}\n", b);
 		state = match (state, b) {
 			(Curp::Nil, b'\x1b') => Curp::Esc,
 			(Curp::Nil, _) => Curp::Nil,
@@ -45,4 +44,17 @@ pub fn get_cursor_xy() -> io::Result<(u16, u16)> {
 		}
 	}
 	Err(io::Error::new(io::ErrorKind::NotFound, "End of tty before cursor pos matched"))
+}
+
+pub fn get_cursor_xy() -> io::Result<(u16, u16)> {
+	get_cursor_xy_with_esc(b"\x1b[6n")
+}
+
+
+pub fn get_tty_wh_dirty() -> io::Result<(u16, u16)> {
+	get_cursor_xy_with_esc(b"\x1b[999;999H\x1b[6n")
+}
+
+pub fn get_tty_wh() -> io::Result<(u16, u16)> {
+	get_cursor_xy_with_esc(b"\x1b7\x1b[999;999H\x1b[6n\x1b8")
 }
