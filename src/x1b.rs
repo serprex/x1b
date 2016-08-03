@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 bitflags! {
-	flags TextAttr: u8 {
+	pub flags TextAttr: u8 {
 		const TA_BOLD = 1,
 		const TA_LOW = 2,
 		const TA_UNDER = 4,
@@ -9,6 +9,15 @@ bitflags! {
 		const TA_INVIS = 32,
 	}
 }
+
+const TA_CHARS: [(TextAttr, char); 6] = [
+	(TA_BOLD, '1'),
+	(TA_LOW, '2'),
+	(TA_UNDER, '4'),
+	(TA_BLINK, '5'),
+	(TA_REV, '7'),
+	(TA_INVIS, '8')];
+
 impl TextAttr {
 	pub fn clear(&mut self) -> bool {
 		let ret = self.bits != 0;
@@ -57,17 +66,10 @@ impl Cursor {
 	}
 	pub fn setattr(&mut self, ta: TextAttr){
 		if ta == self.attr { return }
-		let mapping = [
-			(TA_BOLD, '1'),
-			(TA_LOW, '2'),
-			(TA_UNDER, '4'),
-			(TA_BLINK, '5'),
-			(TA_REV, '7'),
-			(TA_INVIS, '8')];
 		self.buf.push('\x1b');
 		self.buf.push('[');
 		if ta.contains(self.attr) {
-			for &(attr, code) in mapping.iter() {
+			for &(attr, code) in TA_CHARS.iter() {
 				if ta.contains(attr) && !self.attr.contains(attr) {
 					self.buf.push(code);
 					self.buf.push(';')
@@ -75,15 +77,14 @@ impl Cursor {
 			}
 		} else {
 			self.escch('m');
-			for &(attr, code) in mapping.iter() {
+			for &(attr, code) in TA_CHARS.iter() {
 				if ta.contains(attr) {
 					self.buf.push(code);
 					self.buf.push(';')
 				}
 			}
-
 		}
-		unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = 109 }
+		unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = b'm' }
 		self.attr = ta;
 	}
 	pub fn setbold(&mut self){

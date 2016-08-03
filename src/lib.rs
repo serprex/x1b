@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #[macro_use]
 extern crate bitflags;
+extern crate fnv;
 
 mod x1b;
 mod cu;

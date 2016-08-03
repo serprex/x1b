@@ -7,4 +7,5 @@ description = "State tracker for 0x1b terminal escape codes. Also gives random c
 license = "MIT"
 
 [dependencies]
-bitflags = "0.4.0"
+bitflags = "0.7.0"
+fnv = "1.0.3"

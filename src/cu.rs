@@ -1,8 +1,9 @@
 use x1b::*;
-use std::collections::HashMap;
+use std::collections::hash_map::{HashMap, Entry};
+use std::hash::BuildHasherDefault;
 use std::io;
-use std::io::Write;
 use std::mem::transmute;
+use fnv::FnvHasher;
 
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct TCell{
@@ -29,11 +30,12 @@ impl TCell {
 	}
 }
 
+#[derive(Default)]
 pub struct Curse {
 	w: u16,
 	h: u16,
 	old: Vec<TCell>,
-	new: HashMap<u32, TCell>,
+	new: HashMap<u32, TCell, BuildHasherDefault<FnvHasher>>,
 }
 
 impl Curse {
@@ -42,7 +44,7 @@ impl Curse {
 			w: w,
 			h: h,
 			old: vec![TCell::from_char(' '); (w*h) as usize],
-			new: HashMap::new(),
+			new: HashMap::with_hasher(BuildHasherDefault::<FnvHasher>::default()),
 		}
 	}
 	pub fn clear(&mut self, tc: TCell) {
@@ -52,14 +54,19 @@ impl Curse {
 		}
 	}
 	pub unsafe fn setidx(&mut self, idx: u32, tc: TCell) {
-		if self.new.contains_key(&idx) || *self.old.get_unchecked(idx as usize) != tc {
-			self.new.insert(idx as u32, tc);
+		match self.new.entry(idx) {
+			Entry::Occupied(mut entry) => {entry.insert(tc);},
+			Entry::Vacant(entry) => {
+				if *self.old.get_unchecked(idx as usize) != tc {
+					entry.insert(tc);
+				}
+			},
 		}
 	}
 	pub fn set(&mut self, x: u16, y: u16, tc: TCell) {
 		let w = self.w;
 		if x<w && y<self.h {
-			unsafe { self.setidx((x+y*w) as u32, tc) }
+			unsafe { self.setidx(x as u32 + y as u32 * w as u32, tc) }
 		}
 	}
 	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
