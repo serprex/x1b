@@ -25,25 +25,72 @@ impl TextAttr {
 		ret
 	}
 }
-pub struct Cursor {
+
+pub trait RGB {
+	fn esc(&self, buf: &mut String);
+}
+
+#[derive(Copy, Clone)]
+pub enum RGB4 {
+	Default,
+	Black,
+	Red,
+	Green,
+	Yellow,
+	Magenta,
+	Cyan,
+	LightGray,
+	DarkGray,
+	LightRed,
+	LightGreen,
+	LightYellow,
+	LightBlue,
+	LightMagenta,
+	LightCyan,
+	LightWhite,
+}
+
+impl Default for RGB4 {
+	fn default() -> Self {
+		RGB4::Default
+	}
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct RGB8(pub u8);
+
+impl RGB for () {
+	fn esc(&self, _buf: &mut String) {
+	}
+}
+
+impl RGB for (u8, u8, u8) {
+	fn esc(&self, buf: &mut String) {
+		buf.push_str(&format!("\x1b[{};2;{};{};{}m", 38, self.0, self.1, self.2));
+	}
+}
+
+pub struct Cursor<TColor: RGB> {
 	pub buf: String,
 	pub attr: TextAttr,
+	pub color: TColor,
 	pub x: u16,
 	pub y: u16,
 }
 
-impl Default for Cursor {
+impl<TColor: RGB + Default> Default for Cursor<TColor> {
 	fn default() -> Self{
 		Cursor {
 			buf: String::new(),
 			attr: TextAttr::empty(),
+			color: Default::default(),
 			x: 1,
 			y: 1,
 		}
 	}
 }
 
-impl Cursor {
+impl<TColor: RGB> Cursor<TColor> {
 	pub fn esc(&mut self, s: &str){
 		self.buf.push('\x1b');
 		self.buf.push('[');
@@ -230,11 +277,9 @@ impl Cursor {
 	pub fn getxy(&self) -> (u16, u16){
 		(self.x, self.y)
 	}
-	pub fn rgbbg(&mut self, rgb: (u8, u8, u8), bg: u8){
-		self.esc(&format!("{};2;{};{};{}m", bg, rgb.0, rgb.1, rgb.2))
-	}
-	pub fn rgb(&mut self, rgb: (u8, u8, u8)){
-		self.rgbbg(rgb, 38)
+	pub fn setcolor(&mut self, rgb: TColor) {
+		self.color = rgb;
+		self.color.esc(&mut self.buf);
 	}
 	pub fn prchr(&mut self, c: char){
 		self.x += 1;
@@ -252,7 +297,7 @@ impl Cursor {
 		self.buf.clear();
 		self.x = 1;
 		self.y = 1;
-		Cursor::dropclear()
+		Cursor::<TColor>::dropclear()
 	}
 	pub fn dropclear() -> io::Result<()> {
 		io::stdout().write_all(b"\x1bc")
