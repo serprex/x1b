@@ -2,14 +2,69 @@ use x1b::*;
 use std::collections::hash_map::{HashMap, Entry};
 use std::hash::BuildHasherDefault;
 use std::io;
+use std::cmp::{PartialEq, Eq};
 use std::mem::transmute;
 use fnv::FnvHasher;
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
-pub struct TCell {
+pub struct Char<TColor: RGB> {
 	ch: u32,
+	pub fg: TColor,
+	pub bg: TColor,
 }
-impl TCell {
+
+impl<TColor: RGB + Copy> Copy for Char<TColor> { }
+impl<TColor: RGB + Eq> Eq for Char<TColor> { }
+
+impl<TColor: RGB + Clone> Clone for Char<TColor> {
+	fn clone(&self) -> Self {
+		Char::<TColor> {
+			ch: self.ch,
+			fg: self.fg.clone(),
+			bg: self.bg.clone(),
+		}
+	}
+}
+
+impl<TColor: RGB + PartialEq> PartialEq for Char<TColor> {
+	fn eq(&self, other: &Self) -> bool {
+		self.ch == other.ch && self.fg == other.fg && self.bg == other.bg
+	}
+}
+
+impl<TColor: RGB + Default> Default for Char<TColor> {
+	fn default() -> Self {
+		Char::<TColor> {
+			ch: Default::default(),
+			fg: Default::default(),
+			bg: Default::default(),
+		}
+	}
+}
+
+impl<TColor: RGB + Default> Char<TColor> {
+	pub fn from_char(ch: char) -> Self {
+		Char::<TColor> {
+			ch: ch as u32,
+			fg: Default::default(),
+			bg: Default::default()
+		}
+	}
+	pub fn with_attr(ch: char, ta: TextAttr) -> Self {
+		Char::<TColor> {
+			ch: (ch as u32)|((ta.bits() as u32)<<24),
+			fg: Default::default(),
+			bg: Default::default(),
+		}
+	}
+}
+
+impl<TColor: RGB> Char<TColor> {
+	pub fn with_color(ch: char, fg: TColor, bg: TColor) -> Self {
+		Char::<TColor> { ch: ch as u32, fg: fg, bg: bg }
+	}
+	pub fn new(ch: char, ta: TextAttr, fg: TColor, bg: TColor) -> Self {
+		Char::<TColor> { ch: (ch as u32)|((ta.bits() as u32)<<24), fg: fg, bg: bg }
+	}
 	pub fn gch(&self) -> char {
 		unsafe { transmute(self.ch&0x00ffffff) }
 	}
@@ -22,42 +77,45 @@ impl TCell {
 	pub fn sta(&mut self, ta: TextAttr) {
 		self.ch = (self.ch&0x00ffffff)|((ta.bits() as u32)<<24)
 	}
-	pub fn new(ch: char, ta: TextAttr) -> Self {
-		TCell { ch: (ch as u32)|((ta.bits() as u32)<<24) }
-	}
-	pub fn from_char(ch: char) -> Self {
-		TCell { ch: ch as u32 }
-	}
 }
 
 pub struct Curse<TColor: RGB> {
 	w: u16,
 	h: u16,
-	old: Vec<TCell>,
-	new: HashMap<u32, TCell, BuildHasherDefault<FnvHasher>>,
+	old: Vec<Char<TColor>>,
+	new: HashMap<u32, Char<TColor>, BuildHasherDefault<FnvHasher>>,
 	cursor: Cursor<TColor>,
 }
 
-impl<TColor: RGB + Default> Curse<TColor> {
+impl<TColor: RGB + Default + Clone> Curse<TColor> {
 	pub fn new(w: u16, h: u16) -> Self {
-		Curse {
+		Curse::<TColor> {
 			w: w,
 			h: h,
-			old: vec![TCell::from_char(' '); (w*h) as usize],
+			old: vec![Char::<TColor>::from_char(' '); (w*h) as usize],
 			new: Default::default(),
 			cursor: Cursor::default(),
 		}
 	}
 }
 
-impl<TColor: RGB> Curse<TColor> {
-	pub fn clear(&mut self, tc: TCell) {
+impl<TColor: RGB + Eq + Copy> Curse<TColor> {
+	pub fn new_with_cursor(cursor: Cursor<TColor>, w: u16, h: u16) -> Curse<TColor> {
+		Curse::<TColor> {
+			w: w,
+			h: h,
+			old: vec![Char::<TColor>::with_color(' ', cursor.fg, cursor.bg); (w*h) as usize],
+			new: Default::default(),
+			cursor: cursor,
+		}
+	}
+	pub fn clear(&mut self, tc: Char<TColor>) {
 		let len = self.old.len() as u32;
 		for idx in 0..len {
 			unsafe { self.setidx(idx, tc) }
 		}
 	}
-	pub unsafe fn setidx(&mut self, idx: u32, tc: TCell) {
+	pub unsafe fn setidx(&mut self, idx: u32, tc: Char<TColor>) {
 		match self.new.entry(idx) {
 			Entry::Occupied(mut entry) => {entry.insert(tc);},
 			Entry::Vacant(entry) => {
@@ -67,18 +125,18 @@ impl<TColor: RGB> Curse<TColor> {
 			},
 		}
 	}
-	pub fn set(&mut self, x: u16, y: u16, tc: TCell) {
+	pub fn set(&mut self, x: u16, y: u16, tc: Char<TColor>) {
 		let w = self.w;
 		if x<w && y<self.h {
 			unsafe { self.setidx(x as u32 + y as u32 * w as u32, tc) }
 		}
 	}
-	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
+	pub fn printnows(&mut self, x: u16, y: u16, s: &str, ta: TextAttr, fg: TColor, bg: TColor) {
 		for (xx, c) in s.chars().enumerate() {
-			self.set(x+(xx as u16), y, TCell::new(c, ta));
+			self.set(x+(xx as u16), y, Char::new(c, ta, fg, bg));
 		}
 	}
-	pub fn print(&mut self, x: u16, y: u16, s: &str, ta: TextAttr) {
+	pub fn print(&mut self, x: u16, y: u16, s: &str, ta: TextAttr, fg: TColor, bg: TColor) {
 		let mut xx = 0;
 		let mut yy = 0;
 		for c in s.chars() {
@@ -89,11 +147,11 @@ impl<TColor: RGB> Curse<TColor> {
 				xx = 0;
 			} else if c == '\t' {
 				for _ in 0..4-xx&!3 {
-					self.set(x+xx, y+yy, TCell::new(' ', ta));
+					self.set(x+xx, y+yy, Char::new(' ', ta, fg, bg));
 					xx += 1;
 				}
 			} else {
-				self.set(x+xx, y+yy, TCell::new(c, ta));
+				self.set(x+xx, y+yy, Char::new(c, ta, fg, bg));
 				xx += 1;
 			}
 		}
@@ -114,7 +172,7 @@ impl<TColor: RGB> Curse<TColor> {
 		self.new.clear();
 		self.cursor.flush()
 	}
-	pub fn perframe_refresh_then_clear(&mut self, tc: TCell) -> io::Result<()> {
+	pub fn perframe_refresh_then_clear(&mut self, tc: Char<TColor>) -> io::Result<()> {
 		let mut rmxyc: Vec<u32> = Vec::with_capacity(self.new.len());
 		for (&idx, newtc) in self.new.iter_mut() {
 			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
@@ -125,6 +183,8 @@ impl<TColor: RGB> Curse<TColor> {
 				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
 				self.cursor.mv(x+1, y+1);
 				self.cursor.setattr(ta);
+				self.cursor.setbg(newtc.bg);
+				self.cursor.setfg(newtc.fg);
 				self.cursor.prchr(ch);
 			}
 			if *newtc != tc {

@@ -2,21 +2,19 @@ use std::io::{self, Write};
 bitflags! {
 	pub flags TextAttr: u8 {
 		const TA_BOLD = 1,
-		const TA_LOW = 2,
+		const TA_DIM = 2,
 		const TA_UNDER = 4,
 		const TA_BLINK = 8,
 		const TA_REV = 16,
-		const TA_INVIS = 32,
 	}
 }
 
-const TA_CHARS: [(TextAttr, char); 6] = [
+const TA_CHARS: [(TextAttr, char); 5] = [
 	(TA_BOLD, '1'),
-	(TA_LOW, '2'),
+	(TA_DIM, '2'),
 	(TA_UNDER, '4'),
 	(TA_BLINK, '5'),
-	(TA_REV, '7'),
-	(TA_INVIS, '8')];
+	(TA_REV, '7')];
 
 impl TextAttr {
 	pub fn clear(&mut self) -> bool {
@@ -27,10 +25,11 @@ impl TextAttr {
 }
 
 pub trait RGB {
-	fn esc(&self, buf: &mut String);
+	fn fg(&self, buf: &mut String);
+	fn bg(&self, buf: &mut String);
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum RGB4 {
 	Default,
 	Black,
@@ -56,34 +55,45 @@ impl Default for RGB4 {
 	}
 }
 
-#[derive(Copy, Clone, Default)]
-pub struct RGB8(pub u8);
-
 impl RGB for () {
-	fn esc(&self, _buf: &mut String) {
+	fn fg(&self, _buf: &mut String) { }
+	fn bg(&self, _buf: &mut String) { }
+}
+
+impl RGB for u8 {
+	fn fg(&self, buf: &mut String) {
+		buf.push_str(&format!(""))
+	}
+	fn bg(&self, buf: &mut String) {
+		buf.push_str(&format!(""))
 	}
 }
 
 impl RGB for (u8, u8, u8) {
-	fn esc(&self, buf: &mut String) {
+	fn fg(&self, buf: &mut String) {
 		buf.push_str(&format!("\x1b[{};2;{};{};{}m", 38, self.0, self.1, self.2));
+	}
+	fn bg(&self, buf: &mut String) {
+		buf.push_str(&format!("\x1b[{};2;{};{};{}m", 48, self.0, self.1, self.2));
 	}
 }
 
 pub struct Cursor<TColor: RGB> {
 	pub buf: String,
 	pub attr: TextAttr,
-	pub color: TColor,
+	pub fg: TColor,
+	pub bg: TColor,
 	pub x: u16,
 	pub y: u16,
 }
 
 impl<TColor: RGB + Default> Default for Cursor<TColor> {
-	fn default() -> Self{
-		Cursor {
+	fn default() -> Self {
+		Cursor::<TColor> {
 			buf: String::new(),
 			attr: TextAttr::empty(),
-			color: Default::default(),
+			fg: Default::default(),
+			bg: Default::default(),
 			x: 1,
 			y: 1,
 		}
@@ -91,6 +101,17 @@ impl<TColor: RGB + Default> Default for Cursor<TColor> {
 }
 
 impl<TColor: RGB> Cursor<TColor> {
+	pub fn new(fg: TColor, bg: TColor) -> Self {
+		Cursor::<TColor> {
+			buf: String::new(),
+			attr: TextAttr::empty(),
+			fg: fg,
+			bg: bg,
+			x: 1,
+			y: 1,
+		}
+	}
+
 	pub fn esc(&mut self, s: &str){
 		self.buf.push('\x1b');
 		self.buf.push('[');
@@ -138,8 +159,8 @@ impl<TColor: RGB> Cursor<TColor> {
 		self.attr.insert(TA_BOLD);
 		self.esc("1m")
 	}
-	pub fn setlow(&mut self){
-		self.attr.insert(TA_LOW);
+	pub fn setdim(&mut self){
+		self.attr.insert(TA_DIM);
 		self.esc("2m")
 	}
 	pub fn setunder(&mut self){
@@ -153,10 +174,6 @@ impl<TColor: RGB> Cursor<TColor> {
 	pub fn setrev(&mut self){
 		self.attr.insert(TA_REV);
 		self.esc("7m")
-	}
-	pub fn setinvis(&mut self){
-		self.attr.insert(TA_INVIS);
-		self.esc("8m")
 	}
 	pub fn unsetbold(&mut self){
 		self.attr.remove(TA_BOLD);
@@ -277,9 +294,13 @@ impl<TColor: RGB> Cursor<TColor> {
 	pub fn getxy(&self) -> (u16, u16){
 		(self.x, self.y)
 	}
-	pub fn setcolor(&mut self, rgb: TColor) {
-		self.color = rgb;
-		self.color.esc(&mut self.buf);
+	pub fn setfg(&mut self, rgb: TColor) {
+		self.fg = rgb;
+		self.fg.fg(&mut self.buf);
+	}
+	pub fn setbg(&mut self, rgb: TColor) {
+		self.bg = rgb;
+		self.bg.bg(&mut self.buf);
 	}
 	pub fn prchr(&mut self, c: char){
 		self.x += 1;

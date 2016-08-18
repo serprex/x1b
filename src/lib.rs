@@ -19,8 +19,8 @@ mod test {
 	use query;
 	#[test]
 	fn curspos() {
-		let mut rc: x1b::Cursor = Default::default();
-		rc.rgb((0x33, 0x66, 0x99));
+		let mut rc: x1b::Cursor<(u8, u8, u8)> = Default::default();
+		rc.setfg((0x33, 0x66, 0x99));
 		rc.print("asdf\n");
 		let (rx, ry) = rc.getxy();
 		rc.print(&format!("{} {} ?", rx, ry));
