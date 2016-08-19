@@ -36,6 +36,7 @@ pub enum RGB4 {
 	Red,
 	Green,
 	Yellow,
+	Blue,
 	Magenta,
 	Cyan,
 	LightGray,
@@ -46,7 +47,7 @@ pub enum RGB4 {
 	LightBlue,
 	LightMagenta,
 	LightCyan,
-	LightWhite,
+	White,
 }
 
 impl Default for RGB4 {
@@ -55,17 +56,94 @@ impl Default for RGB4 {
 	}
 }
 
+impl RGB for RGB4 {
+	fn fg(&self, _buf: &mut String) {
+		buf.push_str(match *self {
+			RGB4::Default => "\x1b[49m",
+			RGB4::Black => "\x1b[40m",
+			RGB4::Red => "\x1b[41m",
+			RGB4::Green => "\x1b[42m",
+			RGB4::Yellow => "\x1b[43m",
+			RGB4::Blue => "\x1b[44m",
+			RGB4::Magenta => "\x1b[45m",
+			RGB4::Cyan => "\x1b[46m",
+			RGB4::LightGray => "\x1b[47m",
+			RGB4::DarkGray => "\x1b[40;1m",
+			RGB4::LightRed => "\x1b[41;1m",
+			RGB4::LightGreen => "\x1b[42;1m",
+			RGB4::LightYellow => "\x1b[43;1m",
+			RGB4::LightBlue => "\x1b[44;1m",
+			RGB4::LightMagenta => "\x1b[45;1m",
+			RGB4::LightCyan => "\x1b[46;1m",
+			RGB4::White => "\x1b[47;1m",
+		});
+	}
+	fn bg(&self, _buf: &mut String) {
+		buf.push_str(match *self {
+			RGB4::Default => "\x1b[39m",
+			RGB4::Black => "\x1b[30m",
+			RGB4::Red => "\x1b[31m",
+			RGB4::Green => "\x1b[32m",
+			RGB4::Yellow => "\x1b[33m",
+			RGB4::Blue => "\x1b[34m",
+			RGB4::Magenta => "\x1b[35m",
+			RGB4::Cyan => "\x1b[36m",
+			RGB4::LightGray => "\x1b[37m",
+			RGB4::DarkGray => "\x1b[30;1m",
+			RGB4::LightRed => "\x1b[31;1m",
+			RGB4::LightGreen => "\x1b[32;1m",
+			RGB4::LightYellow => "\x1b[33;1m",
+			RGB4::LightBlue => "\x1b[34;1m",
+			RGB4::LightMagenta => "\x1b[35;1m",
+			RGB4::LightCyan => "\x1b[36;1m",
+			RGB4::White => "\x1b[37;1m",
+		});
+	}
+}
+
 impl RGB for () {
 	fn fg(&self, _buf: &mut String) { }
 	fn bg(&self, _buf: &mut String) { }
 }
 
+pub struct RGB8;
+impl RGB8 {
+	pub fn rgb4(c: RGB4) -> u8 {
+		match c {
+			RGB4::Black => 0,
+			RGB4::Red => 1,
+			RGB4::Green => 2,
+			RGB4::Yellow => 3,
+			RGB4::Blue => 4,
+			RGB4::Magenta => 5,
+			RGB4::Cyan => 6,
+			RGB4::LightGray => 7,
+			RGB4::DarkGray => 8,
+			RGB4::LightRed => 9,
+			RGB4::LightGreen => 10,
+			RGB4::LightYellow => 11,
+			RGB4::LightBlue => 12,
+			RGB4::LightMagenta => 13,
+			RGB4::LightCyan => 14,
+			RGB4::White => 15,
+		}
+	}
+
+	pub fn rgb(r: u8, g: u8, b: u8) -> u8 {
+		16 + r*36 + g*6 + b
+	}
+
+	pub fn gray(s: u8) -> u8 {
+		232 + s
+	}
+}
+
 impl RGB for u8 {
 	fn fg(&self, buf: &mut String) {
-		buf.push_str(&format!(""))
+		buf.push_str(&format!("\x1b[38;5;{}m", *self))
 	}
 	fn bg(&self, buf: &mut String) {
-		buf.push_str(&format!(""))
+		buf.push_str(&format!("\x1b[48;5;{}m", *self))
 	}
 }
 
