@@ -57,7 +57,7 @@ impl Default for RGB4 {
 }
 
 impl RGB for RGB4 {
-	fn fg(&self, _buf: &mut String) {
+	fn fg(&self, buf: &mut String) {
 		buf.push_str(match *self {
 			RGB4::Default => "\x1b[49m",
 			RGB4::Black => "\x1b[40m",
@@ -78,7 +78,7 @@ impl RGB for RGB4 {
 			RGB4::White => "\x1b[47;1m",
 		});
 	}
-	fn bg(&self, _buf: &mut String) {
+	fn bg(&self, buf: &mut String) {
 		buf.push_str(match *self {
 			RGB4::Default => "\x1b[39m",
 			RGB4::Black => "\x1b[30m",
@@ -110,6 +110,7 @@ pub struct RGB8;
 impl RGB8 {
 	pub fn rgb4(c: RGB4) -> u8 {
 		match c {
+			RGB4::Default => 0,
 			RGB4::Black => 0,
 			RGB4::Red => 1,
 			RGB4::Green => 2,
