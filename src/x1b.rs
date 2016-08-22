@@ -159,9 +159,9 @@ impl RGB for (u8, u8, u8) {
 
 pub struct Cursor<TColor: RGB> {
 	pub buf: String,
-	pub attr: TextAttr,
 	pub fg: TColor,
 	pub bg: TColor,
+	pub attr: TextAttr,
 	pub x: u16,
 	pub y: u16,
 }
@@ -179,7 +179,7 @@ impl<TColor: RGB + Default> Default for Cursor<TColor> {
 	}
 }
 
-impl<TColor: RGB> Cursor<TColor> {
+impl<TColor: RGB + Eq> Cursor<TColor> {
 	pub fn new(fg: TColor, bg: TColor) -> Self {
 		Cursor::<TColor> {
 			buf: String::new(),
@@ -374,12 +374,16 @@ impl<TColor: RGB> Cursor<TColor> {
 		(self.x, self.y)
 	}
 	pub fn setfg(&mut self, rgb: TColor) {
-		self.fg = rgb;
-		self.fg.fg(&mut self.buf);
+		if self.fg != rgb {
+			self.fg = rgb;
+			self.fg.fg(&mut self.buf);
+		}
 	}
 	pub fn setbg(&mut self, rgb: TColor) {
-		self.bg = rgb;
-		self.bg.bg(&mut self.buf);
+		if self.bg != rgb {
+			self.bg = rgb;
+			self.bg.bg(&mut self.buf);
+		}
 	}
 	pub fn prchr(&mut self, c: char){
 		self.x += 1;

@@ -7,9 +7,9 @@ use std::mem::transmute;
 use fnv::FnvHasher;
 
 pub struct Char<TColor: RGB> {
-	ch: u32,
 	pub fg: TColor,
 	pub bg: TColor,
+	ch: u32,
 }
 
 impl<TColor: RGB + Copy> Copy for Char<TColor> { }
@@ -41,15 +41,18 @@ impl<TColor: RGB + Default> Default for Char<TColor> {
 	}
 }
 
-impl<TColor: RGB + Default> Char<TColor> {
-	pub fn from_char(ch: char) -> Self {
+impl<TColor: RGB + Default> From<char> for Char<TColor> {
+	fn from(ch: char) -> Self {
 		Char::<TColor> {
 			ch: ch as u32,
 			fg: Default::default(),
 			bg: Default::default()
 		}
 	}
-	pub fn with_attr(ch: char, ta: TextAttr) -> Self {
+}
+
+impl<TColor: RGB + Default> Char<TColor> {
+	pub fn new_with_attr(ch: char, ta: TextAttr) -> Self {
 		Char::<TColor> {
 			ch: (ch as u32)|((ta.bits() as u32)<<24),
 			fg: Default::default(),
@@ -59,32 +62,32 @@ impl<TColor: RGB + Default> Char<TColor> {
 }
 
 impl<TColor: RGB> Char<TColor> {
-	pub fn with_color(ch: char, fg: TColor, bg: TColor) -> Self {
+	pub fn new_with_color(ch: char, fg: TColor, bg: TColor) -> Self {
 		Char::<TColor> { ch: ch as u32, fg: fg, bg: bg }
 	}
 	pub fn new(ch: char, ta: TextAttr, fg: TColor, bg: TColor) -> Self {
 		Char::<TColor> { ch: (ch as u32)|((ta.bits() as u32)<<24), fg: fg, bg: bg }
 	}
-	pub fn gch(&self) -> char {
+	pub fn get_char(&self) -> char {
 		unsafe { transmute(self.ch&0x00ffffff) }
 	}
-	pub fn gta(&self) -> TextAttr {
+	pub fn get_attr(&self) -> TextAttr {
 		unsafe { transmute((self.ch >> 24) as u8) }
 	}
-	pub fn sch(&mut self, ch: char) {
+	pub fn set_char(&mut self, ch: char) {
 		self.ch = (self.ch&0xff000000)|(ch as u32)
 	}
-	pub fn sta(&mut self, ta: TextAttr) {
+	pub fn set_attr(&mut self, ta: TextAttr) {
 		self.ch = (self.ch&0x00ffffff)|((ta.bits() as u32)<<24)
 	}
 }
 
 pub struct Curse<TColor: RGB> {
-	w: u16,
-	h: u16,
 	old: Vec<Char<TColor>>,
 	new: HashMap<u32, Char<TColor>, BuildHasherDefault<FnvHasher>>,
 	cursor: Cursor<TColor>,
+	w: u16,
+	h: u16,
 }
 
 impl<TColor: RGB + Default + Clone> Curse<TColor> {
@@ -92,7 +95,7 @@ impl<TColor: RGB + Default + Clone> Curse<TColor> {
 		Curse::<TColor> {
 			w: w,
 			h: h,
-			old: vec![Char::<TColor>::from_char(' '); (w*h) as usize],
+			old: vec![Char::<TColor>::from(' '); (w*h) as usize],
 			new: Default::default(),
 			cursor: Cursor::default(),
 		}
@@ -104,7 +107,7 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 		Curse::<TColor> {
 			w: w,
 			h: h,
-			old: vec![Char::<TColor>::with_color(' ', cursor.fg, cursor.bg); (w*h) as usize],
+			old: vec![Char::<TColor>::new_with_color(' ', cursor.fg, cursor.bg); (w*h) as usize],
 			new: Default::default(),
 			cursor: cursor,
 		}
@@ -161,8 +164,8 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
 			if oldtc != newtc {
 				*oldtc = *newtc;
-				let ch = newtc.gch();
-				let ta = newtc.gta();
+				let ch = newtc.get_char();
+				let ta = newtc.get_attr();
 				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
 				self.cursor.mv(x+1, y+1);
 				self.cursor.setattr(ta);
@@ -178,8 +181,8 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
 			if oldtc != newtc {
 				*oldtc = *newtc;
-				let ch = newtc.gch();
-				let ta = newtc.gta();
+				let ch = newtc.get_char();
+				let ta = newtc.get_attr();
 				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
 				self.cursor.mv(x+1, y+1);
 				self.cursor.setattr(ta);
