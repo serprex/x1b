@@ -324,9 +324,11 @@ impl<TColor: RGB + Eq> Cursor<TColor> {
 		self.escch('H')
 	}
 	pub fn mv(&mut self, x: u16, y: u16){
-		self.x = x;
-		self.y = y;
-		self.esc(&format!("{};{}H",y,x))
+		if self.x != x || self.y != y {
+			self.x = x;
+			self.y = y;
+			self.esc(&format!("{};{}H",y,x));
+		}
 	}
 	pub fn erasebelow(&mut self){
 		self.escch('J')

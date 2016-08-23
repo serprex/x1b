@@ -1,10 +1,8 @@
 use x1b::*;
-use std::collections::hash_map::{HashMap, Entry};
-use std::hash::BuildHasherDefault;
+use std::collections::btree_map::{BTreeMap, Entry};
 use std::io;
 use std::cmp::{PartialEq, Eq};
 use std::mem::transmute;
-use fnv::FnvHasher;
 
 pub struct Char<TColor: RGB> {
 	pub fg: TColor,
@@ -84,7 +82,7 @@ impl<TColor: RGB> Char<TColor> {
 
 pub struct Curse<TColor: RGB> {
 	old: Vec<Char<TColor>>,
-	new: HashMap<u32, Char<TColor>, BuildHasherDefault<FnvHasher>>,
+	new: BTreeMap<u32, Char<TColor>>,
 	cursor: Cursor<TColor>,
 	w: u16,
 	h: u16,
@@ -183,8 +181,8 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 				*oldtc = *newtc;
 				let ch = newtc.get_char();
 				let ta = newtc.get_attr();
-				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
-				self.cursor.mv(x+1, y+1);
+				let (x, y) = ((idx%self.w as u32) as u16+1, (idx/self.w as u32) as u16+1);
+				self.cursor.mv(x, y);
 				self.cursor.setattr(ta);
 				self.cursor.setbg(newtc.bg);
 				self.cursor.setfg(newtc.fg);
