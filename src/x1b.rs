@@ -1,28 +1,4 @@
 use std::io::{self, Write};
-bitflags! {
-	pub flags TextAttr: u8 {
-		const TA_BOLD = 1,
-		const TA_DIM = 2,
-		const TA_UNDER = 4,
-		const TA_BLINK = 8,
-		const TA_REV = 16,
-	}
-}
-
-const TA_CHARS: [(TextAttr, char); 5] = [
-	(TA_BOLD, '1'),
-	(TA_DIM, '2'),
-	(TA_UNDER, '4'),
-	(TA_BLINK, '5'),
-	(TA_REV, '7')];
-
-impl TextAttr {
-	pub fn clear(&mut self) -> bool {
-		let ret = self.bits != 0;
-		self.bits = 0;
-		ret
-	}
-}
 
 pub trait RGB {
 	fn fg(&self, buf: &mut String);
@@ -157,178 +133,91 @@ impl RGB for (u8, u8, u8) {
 	}
 }
 
-pub struct Cursor<TColor: RGB> {
-	pub buf: String,
-	pub fg: TColor,
-	pub bg: TColor,
-	pub attr: TextAttr,
-	pub x: u16,
-	pub y: u16,
-}
+#[derive(Default)]
+pub struct Cursor(pub String);
 
-impl<TColor: RGB + Default> Default for Cursor<TColor> {
-	fn default() -> Self {
-		Cursor::<TColor> {
-			buf: String::new(),
-			attr: TextAttr::empty(),
-			fg: Default::default(),
-			bg: Default::default(),
-			x: 1,
-			y: 1,
-		}
-	}
-}
-
-impl<TColor: RGB + Eq> Cursor<TColor> {
-	pub fn new(fg: TColor, bg: TColor) -> Self {
-		Cursor::<TColor> {
-			buf: String::new(),
-			attr: TextAttr::empty(),
-			fg: fg,
-			bg: bg,
-			x: 1,
-			y: 1,
-		}
-	}
-
+impl Cursor {
 	pub fn esc(&mut self, s: &str){
-		self.buf.push('\x1b');
-		self.buf.push('[');
-		self.buf.push_str(s)
+		self.0.push('\x1b');
+		self.0.push('[');
+		self.0.push_str(s)
 	}
 	pub fn escch(&mut self, c: char){
-		self.buf.push('\x1b');
-		self.buf.push('[');
-		self.buf.push(c)
+		self.0.push('\x1b');
+		self.0.push('[');
+		self.0.push(c)
 	}
 	pub fn clearattr(&mut self){
-		self.attr.clear();
 		self.escch('m')
 	}
-	pub fn hasallattr(&self, ta: TextAttr) -> bool{
-		self.attr.contains(ta)
-	}
-	pub fn hasanyattr(&self, ta: TextAttr) -> bool{
-		self.attr.intersects(ta)
-	}
-	pub fn setattr(&mut self, ta: TextAttr){
-		if ta == self.attr { return }
-		self.buf.push('\x1b');
-		self.buf.push('[');
-		if ta.contains(self.attr) {
-			for &(attr, code) in TA_CHARS.iter() {
-				if ta.contains(attr) && !self.attr.contains(attr) {
-					self.buf.push(code);
-					self.buf.push(';')
-				}
-			}
-		} else {
-			self.escch('m');
-			for &(attr, code) in TA_CHARS.iter() {
-				if ta.contains(attr) {
-					self.buf.push(code);
-					self.buf.push(';')
-				}
-			}
-		}
-		unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = b'm' }
-		self.attr = ta;
-	}
 	pub fn setbold(&mut self){
-		self.attr.insert(TA_BOLD);
 		self.esc("1m")
 	}
 	pub fn setdim(&mut self){
-		self.attr.insert(TA_DIM);
 		self.esc("2m")
 	}
 	pub fn setunder(&mut self){
-		self.attr.insert(TA_UNDER);
 		self.esc("4m")
 	}
 	pub fn setblink(&mut self){
-		self.attr.insert(TA_BLINK);
 		self.esc("5m")
 	}
 	pub fn setrev(&mut self){
-		self.attr.insert(TA_REV);
 		self.esc("7m")
 	}
 	pub fn unsetbold(&mut self){
-		self.attr.remove(TA_BOLD);
 		self.esc("21m")
 	}
 	pub fn unsetrev(&mut self){
-		self.attr.remove(TA_REV);
 		self.esc("27m")
 	}
 	pub fn wrapon(&mut self){
-		self.buf.push_str("\x1b7h")
+		self.0.push_str("\x1b7h")
 	}
 	pub fn wrapoff(&mut self){
-		self.buf.push_str("\x1b7l")
+		self.0.push_str("\x1b7l")
 	}
 	pub fn up1(&mut self){
-		self.y -= 1;
 		self.escch('A')
 	}
 	pub fn down1(&mut self){
-		self.y += 1;
 		self.escch('B')
 	}
 	pub fn right1(&mut self){
-		self.x -= 1;
 		self.escch('C')
 	}
 	pub fn left1(&mut self){
-		self.x += 1;
 		self.escch('D')
 	}
 	pub fn up(&mut self, n: u16){
-		self.y -= n;
 		self.esc(&format!("{}A", n))
 	}
 	pub fn down(&mut self, n: u16){
-		self.y += n;
 		self.esc(&format!("{}B", n))
 	}
 	pub fn right(&mut self, n: u16){
-		self.x -= n;
 		self.esc(&format!("{}C", n))
 	}
 	pub fn left(&mut self, n: u16){
-		self.x += n;
 		self.esc(&format!("{}D", n))
 	}
 	pub fn x1down(&mut self, n: u16){
-		self.x = 1;
-		self.y += n;
 		self.esc(&format!("{}E", n))
 	}
 	pub fn x1up(&mut self, n: u16){
-		self.x = 1;
-		self.y -= n;
 		self.esc(&format!("{}F", n))
 	}
 	pub fn setx(&mut self, x: u16){
-		self.x = x;
 		self.esc(&format!("{}G", x))
 	}
 	pub fn sety(&mut self, y: u16){
-		self.y = y;
 		self.esc(&format!("{}d", y))
 	}
 	pub fn resetxy(&mut self){
-		self.x = 1;
-		self.y = 1;
 		self.escch('H')
 	}
 	pub fn mv(&mut self, x: u16, y: u16){
-		if self.x != x || self.y != y {
-			self.x = x;
-			self.y = y;
-			self.esc(&format!("{};{}H",y,x));
-		}
+		self.esc(&format!("{};{}H",y,x));
 	}
 	pub fn erasebelow(&mut self){
 		self.escch('J')
@@ -360,9 +249,6 @@ impl<TColor: RGB + Eq> Cursor<TColor> {
 	pub fn delchs(&mut self, n: u16){
 		self.esc(&format!("{}S", n))
 	}
-	pub fn getattr(&self) -> TextAttr{
-		self.attr
-	}
 	pub fn showcur(&mut self){
 		self.esc("?23h")
 	}
@@ -370,48 +256,31 @@ impl<TColor: RGB + Eq> Cursor<TColor> {
 		self.esc("?25l")
 	}
 	pub fn spame(&mut self){
-		self.buf.push_str("\x1b#8")
+		self.0.push_str("\x1b#8")
 	}
-	pub fn getxy(&self) -> (u16, u16){
-		(self.x, self.y)
+	pub fn setfg<TColor: RGB>(&mut self, rgb: TColor) {
+		rgb.fg(&mut self.0);
 	}
-	pub fn setfg(&mut self, rgb: TColor) {
-		if self.fg != rgb {
-			self.fg = rgb;
-			self.fg.fg(&mut self.buf);
-		}
-	}
-	pub fn setbg(&mut self, rgb: TColor) {
-		if self.bg != rgb {
-			self.bg = rgb;
-			self.bg.bg(&mut self.buf);
-		}
+	pub fn setbg<TColor: RGB>(&mut self, rgb: TColor) {
+		rgb.bg(&mut self.0);
 	}
 	pub fn prchr(&mut self, c: char){
-		self.x += 1;
-		self.buf.push(c)
+		self.0.push(c)
 	}
 	pub fn print(&mut self, s: &str){
-		let mut rsp = s.rsplit('\n');
-		let last = rsp.next().unwrap();
-		let lines = rsp.count();
-		self.x += last.len() as u16;
-		self.y += lines as u16;
-		self.buf.push_str(s)
+		self.0.push_str(s)
 	}
-	pub fn clear(&mut self) -> io::Result<()> {
-		self.buf.clear();
-		self.x = 1;
-		self.y = 1;
-		Cursor::<TColor>::dropclear()
+	pub fn clear(&mut self) {
+		self.0.clear();
+		self.0.push_str("\x1bc");
 	}
 	pub fn dropclear() -> io::Result<()> {
 		io::stdout().write_all(b"\x1bc")
 	}
 	pub fn flush(&mut self) -> io::Result<()> {
 		let mut out = io::stdout();
-		try!(out.write_all(self.buf.as_bytes()));
+		try!(out.write_all(self.0.as_bytes()));
 		try!(out.flush());
-		Ok(self.buf.clear())
+		Ok(self.0.clear())
 	}
 }

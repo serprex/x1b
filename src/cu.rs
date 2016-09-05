@@ -4,6 +4,37 @@ use std::io;
 use std::cmp::{PartialEq, Eq};
 use std::mem::transmute;
 
+bitflags! {
+	pub flags TextAttr: u8 {
+		const TA_BOLD = 1,
+		const TA_DIM = 2,
+		const TA_UNDER = 4,
+		const TA_BLINK = 8,
+		const TA_REV = 16,
+	}
+}
+
+const TA_CHARS: [(TextAttr, u8); 5] = [
+	(TA_BOLD, b'1'),
+	(TA_DIM, b'2'),
+	(TA_UNDER, b'4'),
+	(TA_BLINK, b'5'),
+	(TA_REV, b'7')];
+
+impl Default for TextAttr {
+	fn default() -> Self {
+		TextAttr::empty()
+	}
+}
+
+impl TextAttr {
+	pub fn clear(&mut self) -> bool {
+		let ret = self.bits != 0;
+		self.bits = 0;
+		ret
+	}
+}
+
 pub struct Char<TColor: RGB> {
 	pub fg: TColor,
 	pub bg: TColor,
@@ -80,10 +111,20 @@ impl<TColor: RGB> Char<TColor> {
 	}
 }
 
+#[derive(Default)]
+struct CursorState<TColor: RGB> {
+	cursor: Cursor,
+	fg: TColor,
+	bg: TColor,
+	x: u16,
+	y: u16,
+	attr: TextAttr,
+}
+
 pub struct Curse<TColor: RGB> {
 	old: Vec<Char<TColor>>,
 	new: BTreeMap<u32, Char<TColor>>,
-	cursor: Cursor<TColor>,
+	state: CursorState<TColor>,
 	w: u16,
 	h: u16,
 }
@@ -93,23 +134,14 @@ impl<TColor: RGB + Default + Clone> Curse<TColor> {
 		Curse::<TColor> {
 			w: w,
 			h: h,
+			state: Default::default(),
 			old: vec![Char::<TColor>::from(' '); (w*h) as usize],
 			new: Default::default(),
-			cursor: Cursor::default(),
 		}
 	}
 }
 
 impl<TColor: RGB + Eq + Copy> Curse<TColor> {
-	pub fn new_with_cursor(cursor: Cursor<TColor>, w: u16, h: u16) -> Curse<TColor> {
-		Curse::<TColor> {
-			w: w,
-			h: h,
-			old: vec![Char::<TColor>::new_with_color(' ', cursor.fg, cursor.bg); (w*h) as usize],
-			new: Default::default(),
-			cursor: cursor,
-		}
-	}
 	pub fn clear(&mut self, tc: Char<TColor>) {
 		let len = self.old.len() as u32;
 		for idx in 0..len {
@@ -165,13 +197,19 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 				let ch = newtc.get_char();
 				let ta = newtc.get_attr();
 				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
-				self.cursor.mv(x+1, y+1);
-				self.cursor.setattr(ta);
-				self.cursor.prchr(ch)
+				if self.state.x != x || self.state.y != y {
+					self.state.cursor.mv(x+1, y+1);
+				}
+				self.state.setattr(ta);
+				self.state.setbg(newtc.bg);
+				self.state.setfg(newtc.fg);
+				self.state.cursor.prchr(ch);
+				self.state.x = x + 1;
+				self.state.y = y;
 			}
 		}
 		self.new.clear();
-		self.cursor.flush()
+		self.state.cursor.flush()
 	}
 	pub fn perframe_refresh_then_clear(&mut self, tc: Char<TColor>) -> io::Result<()> {
 		let mut rmxyc: Vec<u32> = Vec::with_capacity(self.new.len());
@@ -182,11 +220,15 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 				let ch = newtc.get_char();
 				let ta = newtc.get_attr();
 				let (x, y) = ((idx%self.w as u32) as u16+1, (idx/self.w as u32) as u16+1);
-				self.cursor.mv(x, y);
-				self.cursor.setattr(ta);
-				self.cursor.setbg(newtc.bg);
-				self.cursor.setfg(newtc.fg);
-				self.cursor.prchr(ch);
+				if self.state.x != x || self.state.y != y {
+					self.state.cursor.mv(x, y);
+				}
+				self.state.setattr(ta);
+				self.state.setbg(newtc.bg);
+				self.state.setfg(newtc.fg);
+				self.state.cursor.prchr(ch);
+				self.state.x = x + 1;
+				self.state.y = y;
 			}
 			if *newtc != tc {
 				*newtc = tc
@@ -197,6 +239,53 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 		for idx in rmxyc {
 			self.new.remove(&idx);
 		}
-		self.cursor.flush()
+		self.state.cursor.flush()
+	}
+}
+impl<TColor: RGB + Eq + Copy> CursorState<TColor> {
+	fn setbg(&mut self, rgb: TColor) {
+		if self.bg != rgb {
+			self.bg = rgb;
+			self.cursor.setbg(rgb);
+		}
+	}
+	fn setfg(&mut self, rgb: TColor) {
+		if self.fg != rgb {
+			self.fg = rgb;
+			self.cursor.setfg(rgb);
+		}
+	}
+	fn setattr(&mut self, ta: TextAttr){
+		if ta == self.attr { return }
+		unsafe {
+			let mut buffer = self.cursor.0.as_mut_vec();
+			let mut blen = buffer.len();
+			buffer.reserve(12);
+			*buffer.get_unchecked_mut(blen) = b'\x1b';
+			*buffer.get_unchecked_mut(blen) = b'[';
+			if ta.contains(self.attr) {
+				blen += 2;
+				for &(attr, code) in TA_CHARS.iter() {
+					if ta.contains(attr) && !self.attr.contains(attr) {
+						*buffer.get_unchecked_mut(blen) = code;
+						*buffer.get_unchecked_mut(blen+1) = b';';
+						blen += 2;
+					}
+				}
+			} else {
+				*buffer.get_unchecked_mut(blen+2) = b'm';
+				blen += 3;
+				for &(attr, code) in TA_CHARS.iter() {
+					if ta.contains(attr) {
+						*buffer.get_unchecked_mut(blen) = code;
+						*buffer.get_unchecked_mut(blen+1) = b';';
+						blen += 2;
+					}
+				}
+			}
+			*buffer.get_unchecked_mut(blen-1) = b'm';
+			buffer.set_len(blen);
+		}
+		self.attr = ta;
 	}
 }
