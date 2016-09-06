@@ -35,27 +35,6 @@ impl Default for RGB4 {
 impl RGB for RGB4 {
 	fn fg(&self, buf: &mut String) {
 		buf.push_str(match *self {
-			RGB4::Default => "\x1b[49m",
-			RGB4::Black => "\x1b[40m",
-			RGB4::Red => "\x1b[41m",
-			RGB4::Green => "\x1b[42m",
-			RGB4::Yellow => "\x1b[43m",
-			RGB4::Blue => "\x1b[44m",
-			RGB4::Magenta => "\x1b[45m",
-			RGB4::Cyan => "\x1b[46m",
-			RGB4::LightGray => "\x1b[47m",
-			RGB4::DarkGray => "\x1b[40;1m",
-			RGB4::LightRed => "\x1b[41;1m",
-			RGB4::LightGreen => "\x1b[42;1m",
-			RGB4::LightYellow => "\x1b[43;1m",
-			RGB4::LightBlue => "\x1b[44;1m",
-			RGB4::LightMagenta => "\x1b[45;1m",
-			RGB4::LightCyan => "\x1b[46;1m",
-			RGB4::White => "\x1b[47;1m",
-		});
-	}
-	fn bg(&self, buf: &mut String) {
-		buf.push_str(match *self {
 			RGB4::Default => "\x1b[39m",
 			RGB4::Black => "\x1b[30m",
 			RGB4::Red => "\x1b[31m",
@@ -65,14 +44,35 @@ impl RGB for RGB4 {
 			RGB4::Magenta => "\x1b[35m",
 			RGB4::Cyan => "\x1b[36m",
 			RGB4::LightGray => "\x1b[37m",
-			RGB4::DarkGray => "\x1b[30;1m",
-			RGB4::LightRed => "\x1b[31;1m",
-			RGB4::LightGreen => "\x1b[32;1m",
-			RGB4::LightYellow => "\x1b[33;1m",
-			RGB4::LightBlue => "\x1b[34;1m",
-			RGB4::LightMagenta => "\x1b[35;1m",
-			RGB4::LightCyan => "\x1b[36;1m",
-			RGB4::White => "\x1b[37;1m",
+			RGB4::DarkGray => "\x1b[90m",
+			RGB4::LightRed => "\x1b[91m",
+			RGB4::LightGreen => "\x1b[92m",
+			RGB4::LightYellow => "\x1b[93m",
+			RGB4::LightBlue => "\x1b[94m",
+			RGB4::LightMagenta => "\x1b[95m",
+			RGB4::LightCyan => "\x1b[96m",
+			RGB4::White => "\x1b[97m",
+		});
+	}
+	fn bg(&self, buf: &mut String) {
+		buf.push_str(match *self {
+			RGB4::Default => "\x1b[49m",
+			RGB4::Black => "\x1b[40m",
+			RGB4::Red => "\x1b[41m",
+			RGB4::Green => "\x1b[42m",
+			RGB4::Yellow => "\x1b[43m",
+			RGB4::Blue => "\x1b[44m",
+			RGB4::Magenta => "\x1b[45m",
+			RGB4::Cyan => "\x1b[46m",
+			RGB4::LightGray => "\x1b[47m",
+			RGB4::DarkGray => "\x1b[100m",
+			RGB4::LightRed => "\x1b[101m",
+			RGB4::LightGreen => "\x1b[102m",
+			RGB4::LightYellow => "\x1b[103m",
+			RGB4::LightBlue => "\x1b[104m",
+			RGB4::LightMagenta => "\x1b[105m",
+			RGB4::LightCyan => "\x1b[106m",
+			RGB4::White => "\x1b[107m",
 		});
 	}
 }
