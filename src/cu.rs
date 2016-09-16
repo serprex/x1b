@@ -258,7 +258,7 @@ impl<TColor: RGB + Eq + Copy> CursorState<TColor> {
 	fn setattr(&mut self, ta: TextAttr){
 		if ta == self.attr { return }
 		unsafe {
-			let mut buffer = self.cursor.0.as_mut_vec();
+			let mut buffer = &mut self.cursor.0;
 			let mut blen = buffer.len();
 			buffer.reserve(12);
 			*buffer.get_unchecked_mut(blen) = b'\x1b';
