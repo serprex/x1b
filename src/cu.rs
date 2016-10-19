@@ -189,24 +189,27 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 			}
 		}
 	}
+	fn oldnewtc(state: &mut CursorState<TColor>, w: u32, idx: u32, oldtc: &mut Char<TColor>, newtc: &Char<TColor>) {
+		if oldtc != newtc {
+			*oldtc = *newtc;
+			let ch = newtc.get_char();
+			let ta = newtc.get_attr();
+			let (x, y) = ((idx%w) as u16, (idx/w) as u16);
+			if state.x != x || state.y != y {
+				state.cursor.mv(x+1, y+1);
+			}
+			state.setattr(ta);
+			state.setbg(newtc.bg);
+			state.setfg(newtc.fg);
+			state.cursor.prchr(ch);
+			state.x = x + 1;
+			state.y = y;
+		}
+	}
 	pub fn refresh(&mut self) -> io::Result<()> {
 		for (&idx, newtc) in self.new.iter() {
 			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
-			if oldtc != newtc {
-				*oldtc = *newtc;
-				let ch = newtc.get_char();
-				let ta = newtc.get_attr();
-				let (x, y) = ((idx%self.w as u32) as u16, (idx/self.w as u32) as u16);
-				if self.state.x != x || self.state.y != y {
-					self.state.cursor.mv(x+1, y+1);
-				}
-				self.state.setattr(ta);
-				self.state.setbg(newtc.bg);
-				self.state.setfg(newtc.fg);
-				self.state.cursor.prchr(ch);
-				self.state.x = x + 1;
-				self.state.y = y;
-			}
+			Self::oldnewtc(&mut self.state, idx, self.w as u32, oldtc, newtc);
 		}
 		self.new.clear();
 		self.state.cursor.flush()
@@ -215,21 +218,7 @@ impl<TColor: RGB + Eq + Copy> Curse<TColor> {
 		let mut rmxyc: Vec<u32> = Vec::with_capacity(self.new.len());
 		for (&idx, newtc) in self.new.iter_mut() {
 			let oldtc = unsafe { self.old.get_unchecked_mut(idx as usize) };
-			if oldtc != newtc {
-				*oldtc = *newtc;
-				let ch = newtc.get_char();
-				let ta = newtc.get_attr();
-				let (x, y) = ((idx%self.w as u32) as u16+1, (idx/self.w as u32) as u16+1);
-				if self.state.x != x || self.state.y != y {
-					self.state.cursor.mv(x, y);
-				}
-				self.state.setattr(ta);
-				self.state.setbg(newtc.bg);
-				self.state.setfg(newtc.fg);
-				self.state.cursor.prchr(ch);
-				self.state.x = x + 1;
-				self.state.y = y;
-			}
+			Self::oldnewtc(&mut self.state, idx, self.w as u32, oldtc, newtc);
 			if *newtc != tc {
 				*newtc = tc
 			} else {

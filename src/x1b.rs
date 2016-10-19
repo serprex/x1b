@@ -1,3 +1,4 @@
+use std::convert::From;
 use std::io::{self, Write};
 
 pub trait RGB {
@@ -27,6 +28,7 @@ pub enum RGB4 {
 }
 
 impl Default for RGB4 {
+	#[inline(always)]
 	fn default() -> Self {
 		RGB4::Default
 	}
@@ -78,13 +80,26 @@ impl RGB for RGB4 {
 }
 
 impl RGB for () {
+	#[inline(always)]
 	fn fg(&self, _buf: &mut Vec<u8>) { }
+	#[inline(always)]
 	fn bg(&self, _buf: &mut Vec<u8>) { }
 }
 
 pub struct RGB8(pub u8);
 impl RGB8 {
-	pub fn rgb4(c: RGB4) -> RGB8 {
+	#[inline(always)]
+	pub fn rgb(r: u8, g: u8, b: u8) -> RGB8 {
+		RGB8(16 + r*36 + g*6 + b)
+	}
+	#[inline(always)]
+	pub fn gray(s: u8) -> RGB8 {
+		RGB8(232 + s)
+	}
+}
+
+impl From<RGB4> for RGB8 {
+	fn from(c: RGB4) -> Self {
 		RGB8(match c {
 			RGB4::Default => 0,
 			RGB4::Black => 0,
@@ -105,23 +120,17 @@ impl RGB8 {
 			RGB4::White => 15,
 		})
 	}
-
-	pub fn rgb(r: u8, g: u8, b: u8) -> RGB8 {
-		RGB8(16 + r*36 + g*6 + b)
-	}
-
-	pub fn gray(s: u8) -> RGB8 {
-		RGB8(232 + s)
-	}
 }
 
 impl RGB for RGB8 {
+	#[inline(always)]
 	fn fg(&self, buf: &mut Vec<u8>) {
 		buf.reserve(11);
 		buf.extend_from_slice(b"\x1b[38;5;");
 		unsafe { extend_from_u8(buf, self.0); }
 		buf.push(b'm');
 	}
+	#[inline(always)]
 	fn bg(&self, buf: &mut Vec<u8>) {
 		buf.reserve(11);
 		buf.extend_from_slice(b"\x1b[48;5;");
