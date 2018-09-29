@@ -4,18 +4,18 @@
 #[macro_use]
 extern crate bitflags;
 
-mod x1b;
 mod cu;
 mod query;
+mod x1b;
 
-pub use x1b::*;
 pub use cu::*;
 pub use query::*;
+pub use x1b::*;
 
 #[cfg(test)]
 mod test {
-	use x1b;
 	use query;
+	use x1b;
 	#[test]
 	fn curspos() {
 		let mut rc: x1b::Cursor = Default::default();
