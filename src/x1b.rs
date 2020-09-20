@@ -428,8 +428,8 @@ impl Cursor {
 	#[inline(always)]
 	pub fn flush(&mut self) -> io::Result<()> {
 		let mut out = io::stdout();
-		try!(out.write_all(&self.0));
-		try!(out.flush());
+		out.write_all(&self.0)?;
+		out.flush()?;
 		Ok(self.0.clear())
 	}
 }
